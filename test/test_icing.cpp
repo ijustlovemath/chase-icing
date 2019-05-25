@@ -10,10 +10,12 @@ typedef double icing_float;
 // Implementation borrowed from here: https://www.boost.org/doc/libs/1_53_0/libs/numeric/odeint/doc/html/boost_numeric_odeint/tutorial/harmonic_oscillator.html
 typedef std::vector<icing_float> state_type;
 
+// [1] - Reference Paper: TBME-01160-2016 
+// [2] - Reference Paper: computer methods and programs in biomedicine 102 (2011) 192–205
 class ChaseIcing {
     // Each enum maps to an index within the state variable for accessing that
     // function's value.
-    enum Function { BG_t = 0
+    enum Function { G_t = 0
         , Q_t
         , I_t
         , P1_t
@@ -23,10 +25,10 @@ class ChaseIcing {
     };
 
     /* a bunch of constants that should be in the namespace */
-    const icing_float n_I = 0.0;
-    const icing_float d1 = 0.0;
-    const icing_float d2 = 0.0;
-    const icing_float P_max = 0.0;
+    const icing_float n_I = 0.0075; // 1/min, Table II, [1]
+    const icing_float d1 = -std::log(0.5)/20.0; // 1/min, Table II, [1]
+    const icing_float d2 = -std::log(0.5)/100.0; // 1/min, Table II, [1]
+    const icing_float P_max = 6.11; // mmol/min, Table II, [1]
 
     icing_float P_min(const auto &x, auto t)
     {
@@ -40,7 +42,7 @@ class ChaseIcing {
 
     icing_float Q_frac(const state_type &x, const icing_float t)
     {
-        const icing_float a_G = 0.0;
+        const icing_float a_G = 1.0 / 65.0; // Table II, [1]
         const auto Q = x[Q_t];
         return alpha_decay(Q, a_G);
     }
@@ -53,55 +55,57 @@ class ChaseIcing {
         return P_min(x, t) + _PN_t;
     }
 
-    icing_float BG_dot(const state_type &x, const icing_float t)
+    icing_float G_dot(const state_type &x, const icing_float t)
     {
-        const icing_float p_G = 0.0;
-        const icing_float S_I = 0.0;
-        const icing_float BG = x[BG_t];
+        const icing_float p_G = 0.006; // End of section 4.1, in [2]
+        const icing_float S_I = 0.0; // TODO: patient specific
+        const icing_float G = x[G_t];
         const icing_float Q = x[Q_t];
         const icing_float P = _P(x, t);
-        const icing_float EGP_b = 0.0;
-        const icing_float CNS = 0.0;
-        const icing_float V_G = 1.0;
+        const icing_float EGP = 1.16; // mmol/min Table II, [1]
+        const icing_float CNS = 0.3; // mmol/min Table II, [1]
+        const icing_float V_G = 13.3; // L, Table II, [1]
 
-        icing_float dBGdt = 0.0;
-        // BG' = -p_G BG(t)
-        //	 - S_I BG(t) (Q(t) / (1 + a_G Q(t)))
-        //	 + (P(t) + EGP_b -CNS)/V_G
-        dBGdt += -p_G * BG;
-        dBGdt += -S_I*BG * Q_frac(x, t);
-        dBGdt += (P + EGP_b - CNS)/V_G;
+        icing_float dGdt = 0.0;
+        // G' = -p_G G(t)
+        //	 - S_I G(t) (Q(t) / (1 + a_G Q(t)))
+        //	 + (P(t) + EGP -CNS)/V_G
+        dGdt += -p_G * G;
+        dGdt += -S_I*G * Q_frac(x, t);
+        dGdt += (P + EGP - CNS)/V_G;
 
-        return dBGdt;
+        return dGdt;
     }
 
     icing_float Q_dot(const state_type &x, const icing_float t)
     {
         const icing_float I = x[I_t];
         const icing_float Q = x[Q_t];
-        const icing_float n_C = 0.0;
+        const icing_float n_C = 0.0075; // 1/min, Table II, [1]
 
         return n_I * (I - Q) - n_C * Q_frac(x, t);
     }
 
     auto _u_en(const auto &x, auto t)
     {
-        const icing_float k1 = 0.0;
-        const icing_float k2 = 0.0;
-        const icing_float k3 = 1.0;
-        return k1 * std::exp(-x[I_t] * (k2 / k3));
+        const icing_float k1 = 14.9; // mU * l / mmol/min, Table II, [1]
+        const icing_float k2 = -49.9; // mU/min, Table II, [1]
+        const icing_float u_min = 16.7; // mU/min, Table II, [1]
+        const icing_float u_max = 266.7; // mU/min, Table II, [1]
+        const icing_float G = x[G_t];
+        return std::min(std::max(u_min, k1 * G + k2), u_max);
     }
 
     auto I_dot(const auto &x, auto t)
     {
-        const icing_float n_K = 0.0;
+        const icing_float n_K = 0.0542; // 1/min, Table II, [1]
         const icing_float I = x[I_t];
-        const icing_float n_L = 0.0;
-        const icing_float a_I = 0.0;
+        const icing_float n_L = 0.1578; // 1/min, Table II, [1] 
+        const icing_float a_I = 1.7e-3; // 1/mU, Table II, [1]
         const icing_float Q = x[Q_t];
         const icing_float u_ex = 0.0; // TODO: get this over the network
-        const icing_float V_I = 1.0;
-        const icing_float x_L = 0.0;
+        const icing_float V_I = 4.0; // L, Table II, [1]
+        const icing_float x_L = 0.67; // unitless, Table II, [1]
         const icing_float u_en = _u_en(x, t);
 
         auto dIdt = icing_float(0.0);
@@ -132,19 +136,19 @@ class ChaseIcing {
 public:
     void operator() (const state_type &x, state_type &dxdt, const icing_float t)
     {
-        dxdt[BG_t] = BG_dot(x, t);
+        dxdt[G_t] = G_dot(x, t);
         dxdt[Q_t] = Q_dot(x, t);
         dxdt[I_t] = I_dot(x, t);
         dxdt[P1_t] = P1_dot(x, t);
         dxdt[P2_t] = P2_dot(x, t);
 
-        std::cout << "BG: " << dxdt[BG_t] << std::endl;
+        std::cout << "G: " << x[G_t] << std::endl;
     }
 };
 
 int main(void)
 {
-    state_type x = {0.0, 0.0, 0.0, 0.0, 0.0};
+    state_type x = {150.0, 0.0, 0.0, 0.0, 0.0};
     ChaseIcing model;
     const double dt = 0.1;
     runge_kutta4<state_type> stepper;
