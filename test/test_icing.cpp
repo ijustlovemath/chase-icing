@@ -58,7 +58,7 @@ class ChaseIcing {
     icing_float G_dot(const state_type &x, const icing_float t)
     {
         const icing_float p_G = 0.006; // End of section 4.1, in [2]
-        const icing_float S_I = 0.0; // TODO: patient specific
+        const icing_float S_I = 0.5; // TODO: patient specific
         const icing_float G = x[G_t];
         const icing_float Q = x[Q_t];
         const icing_float P = _P(x, t);
@@ -152,6 +152,6 @@ int main(void)
     ChaseIcing model;
     const double dt = 0.1;
     runge_kutta4<state_type> stepper;
-    integrate_const<runge_kutta4<state_type>, ChaseIcing>(stepper, model, x, 0.0, 10.0, dt);
+    integrate_const<runge_kutta4<state_type>, ChaseIcing>(stepper, model, x, 0.0, 1000.0, dt);
 	return 0;
 }
