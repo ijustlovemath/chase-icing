@@ -2,6 +2,8 @@
 #include <algorithm> /* for numeric min/max */
 #include <cmath> /* exp */
 
+#include <boost/numeric/odeint.hpp>
+
 typedef double icing_float;
 // Implementation borrowed from here: https://www.boost.org/doc/libs/1_53_0/libs/numeric/odeint/doc/html/boost_numeric_odeint/tutorial/harmonic_oscillator.html
 typedef std::vector<icing_float> state_type;
@@ -19,19 +21,31 @@ enum Function { BG_t = 0
 
 /* a bunch of constants that should be in the namespace */
 const icing_float n_I = 0.0;
-const d1 = 0.0;
-const d2 = 0.0;
-const P_max = 0.0;
+const icing_float d1 = 0.0;
+const icing_float d2 = 0.0;
+const icing_float P_max = 0.0;
 
 icing_float P_min(const auto &x, auto t)
 {
 	return std::min<icing_float>(d2 * x[P2_t], P_max);
 }
 
+icing_float alpha_decay(const icing_float variable, const icing_float decay_parameter)
+{
+	return variable / (1.0 + decay_parameter * variable);
+}
+
+icing_float Q_frac(const state_type &x, const icing_float t)
+{
+	const icing_float a_G = 0.0;
+	const auto Q = x[Q_t];
+	return alpha_decay(Q, a_G);
+}
+
 // PN(t) -> Parenteral nutrition input, eg IV dextrose
 icing_float _P(const state_type &x, const icing_float t)
 {
-	const _PN_t = 0.0; // TODO -> derive this over the network
+	const auto _PN_t = 0.0; // TODO -> derive this over the network
 
 	return P_min(x, t) + _PN_t;
 }
@@ -56,18 +70,6 @@ icing_float BG_dot(const state_type &x, const icing_float t)
 	dBGdt += (P + EGP_b - CNS)/V_G;
 
 	return dBGdt;
-}
-
-icing_float alpha_decay(const icing_float variable, const icing_float decay_parameter)
-{
-	return variable / (1.0 + decay_parameter * variable);
-}
-
-icing_float Q_frac(const state_type &x, const icing_float t)
-{
-	const icing_float a_G = 0.0;
-	const auto Q = x[Q_t];
-	return alpha_decay(Q, a_G);
 }
 
 icing_float Q_dot(const state_type &x, const icing_float t)
