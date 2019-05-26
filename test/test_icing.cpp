@@ -7,7 +7,6 @@
 using namespace boost::numeric::odeint;
 
 typedef double icing_float;
-// Implementation borrowed from here: https://www.boost.org/doc/libs/1_53_0/libs/numeric/odeint/doc/html/boost_numeric_odeint/tutorial/harmonic_oscillator.html
 typedef std::vector<icing_float> state_type;
 
 // [1] - Reference Paper: TBME-01160-2016 
@@ -137,6 +136,7 @@ class ChaseIcing {
     }
 
 public:
+    using state_type = std::vector<U>;
     void operator() (const state_type &x, state_type &dxdt, const U t)
     {
         dxdt[G_t] = G_dot(x, t);
@@ -155,10 +155,16 @@ public:
 
 int main(void)
 {
-    state_type x = {10.0, 3.0, 10.0, 4.0, 3.0};
-    ChaseIcing<> model;
+    using Chase = ChaseIcing<>;
+    using vec5 = Chase::state_type;
+
     const double dt = 0.1;
-    runge_kutta4<state_type> stepper;
+
+    vec5 x = {10.0, 3.0, 10.0, 4.0, 3.0};
+    runge_kutta4<vec5> stepper;
+    Chase model;  
+    
     integrate_const(stepper, model, x, 0.0, 1000.0, dt);
-	return 0;
+	
+    return 0;
 }
