@@ -158,12 +158,12 @@ int main(void)
     using Chase = ChaseIcing<>;
     using vec5 = Chase::state_type;
 
-    const double dt = 0.1;
-
-    vec5 x = {10.0, 3.0, 10.0, 4.0, 3.0};
     runge_kutta4<vec5> stepper;
     Chase model;  
     
+    const double dt = 0.1;
+    vec5 x = {10.0, 3.0, 10.0, 4.0, 3.0};
+
     integrate_const(stepper, model, x, 0.0, 1000.0, dt);
 	
     return 0;
