@@ -1,6 +1,6 @@
 #include <vector> /* representing state */
 #include <algorithm> /* for numeric min/max */
-#include <cmath> /* exp */
+#include <cmath> /* exp, fmod */
 #include <iostream> /* cout */
 
 #include <boost/numeric/odeint.hpp>
@@ -58,7 +58,7 @@ class ChaseIcing {
     icing_float G_dot(const state_type &x, const icing_float t)
     {
         const icing_float p_G = 0.006; // End of section 4.1, in [2]
-        const icing_float S_I = 0.5; // TODO: patient specific
+        const icing_float S_I = 0.5e-3; // TODO: patient specific
         const icing_float G = x[G_t];
         const icing_float Q = x[Q_t];
         const icing_float P = _P(x, t);
@@ -142,13 +142,17 @@ public:
         dxdt[P1_t] = P1_dot(x, t);
         dxdt[P2_t] = P2_dot(x, t);
 
-        std::cout << "G: " << x[G_t] << std::endl;
+        if(std::fmod(t, 10.0) <= 0.1) {
+            std::cout << 
+            "t: " << t << "\t"
+            "G: " << x[G_t] << std::endl;
+        }
     }
 };
 
 int main(void)
 {
-    state_type x = {150.0, 0.0, 0.0, 0.0, 0.0};
+    state_type x = {10.0, 3.0, 10.0, 4.0, 3.0};
     ChaseIcing model;
     const double dt = 0.1;
     runge_kutta4<state_type> stepper;
