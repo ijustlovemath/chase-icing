@@ -16,7 +16,24 @@ if(${DEBUG_GPROF})
     set(CMAKE_EXE_LINKER_FLAGS -pg ${CMAKE_EXE_LINKER_FLAGS})
 endif()
 
+include(ExternalProject)
+
 if(Boost_FOUND)
 	include_directories(${Boost_INCLUDE_DIRS})
 	add_executable(test_icing test/test_icing.cpp)
+
+    # get the controller
+    ExternalProject_Add(imtc
+        GIT_REPOSITORY git@gitlab.com:dejournett/imt-c-controller.git
+        PREFIX ${CMAKE_CURRENT_BINARY_DIR}
+        CMAKE_ARGS -DCMAKE_C_COMPILER=clang -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}
+    )
+
+    ExternalProject_Get_Property(imtc install_dir)
+    include_directories(${install_dir}/src/imtc/include)
+
+    message(FATAL ${install_dir})
+
+    #    add_dependencies(test_icing imtc)
+    target_link_libraries(test_icing ${install_dir}/src/imtc-build/lib/libimt.so)
 endif()

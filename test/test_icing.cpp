@@ -7,6 +7,9 @@
 #include <boost/numeric/odeint.hpp>
 using namespace boost::numeric::odeint;
 
+#include <imt/imt.h>
+#include <imt/libimt.h>
+
 typedef double icing_float;
 //typedef std::vector<icing_float> state_type;
 
@@ -105,7 +108,7 @@ class ChaseIcing {
         const U V_I = 4.0; // L, Table II, [1]
         const U x_L = 0.67; // unitless, Table II, [1]
 
-        const U u_ex = 0.0; // TODO: get this over the network
+        const U u_ex = insulin_rate; // TODO: get this over the network
 
         const U Q = x[fn_Q];
         const U I = x[fn_I];
@@ -127,7 +130,7 @@ class ChaseIcing {
 
     auto P1_dot(const std::vector<U> &x)
     {
-        const auto D = U(0.0); // enteral feed rate TODO: get from network
+        const auto D = dextrose_rate; //U(0.0); // enteral feed rate TODO: get from network
         return -d1 * x[fn_P1] + D;
     }
 
@@ -152,6 +155,11 @@ public:
             "G: " << x[fn_G] << std::endl;
         }
     }
+
+    double insulin_rate;
+    double dextrose_rate;
+    runge_kutta4<state_type> stepper;
+    state_type data;
 };
 
 void load_data(std::string filename)
@@ -159,19 +167,105 @@ void load_data(std::string filename)
         
 }
 
+using Chase = ChaseIcing<>;
+using vec5 = Chase::state_type;
+
+int run_model(Chase model
+        , double time_start
+        , imt_float_t time_step
+        , imt_float_t ins
+        , imt_float_t dex)
+{
+
+    const double dt = 0.1;
+    model.insulin_rate = ins;
+    model.dextrose_rate = dex;
+    integrate_const(model.stepper, model, model.data, time_start, time_start+time_step, dt);
+    return 0;
+}
+
 int main(void)
 {
-    using Chase = ChaseIcing<>;
-    using vec5 = Chase::state_type;
 
-    runge_kutta4<vec5> stepper;
     Chase model;  
     
-    const double dt = 0.1;
     const double tend = 1e5;
     vec5 x = {10.0, 3.0, 10.0, 4.0, 3.0};
+    model.data = x;
 
-    integrate_const(stepper, model, x, 0.0, tend, dt);
 	
+    const int rates_normalized_by_weight = 0;
+
+    const imt_float_t weight = 80.0; /* kg */
+    const imt_float_t INS_conc = 1.0; /* 1 U/mL */
+    const imt_float_t DEX_conc = 20.0; /* D20% */
+    const imt_float_t control_min = 4.4; /* mmol/L */
+    const imt_float_t control_max = 9.0; /* mmol/L */
+    const imt_float_t initial_glucose = 6.1; /* mmol/L */
+
+    const char * INS_units = "U/hr";
+    const char * DEX_units = "mg/min";
+
+    imt_context_t context, *ctx = &context;
+    double insulin_rate, dextrose_rate, time_step;
+
+    /* sets up controller to control to a range of 4.4-9.0 mmol/L */
+    imt_exec_init(ctx 
+        , imt_mmolperL_to_mgperdL(initial_glucose)
+        , weight
+        , imt_mmolperL_to_mgperdL(control_min)
+        , imt_mmolperL_to_mgperdL(control_max)
+        , INS_conc
+        , DEX_conc
+    );
+
+    int running = 1, err = I_OKAY;
+    double time = 0.0;
+
+    /* proper error handling is NOT done here */
+    while(running) {
+        /* run the controller for one cycle */
+        err = imt_exec_controller(ctx);
+        if(err)
+            running = 0;
+
+        /* get insulin rate */
+        err = imt_insulin_prescription_in(ctx, INS_units
+                , rates_normalized_by_weight
+                , &insulin_rate
+        );
+        if(err)
+            running = 0;
+
+        /* get dextrose rate */
+        err = imt_dextrose_prescription_in(ctx, DEX_units
+                , rates_normalized_by_weight
+                , &dextrose_rate
+        );
+        if(err)
+            running = 0;
+
+        /* get time step, in minutes */
+        err = imt_cycle_length_min(ctx, &time_step);
+        if(err)
+            running = 0;
+
+        /* run the model you've chosen */
+        err = run_model(model, time, time_step, insulin_rate, dextrose_rate);
+        if(err)
+            running = 0;
+
+        time += time_step;
+
+        /* get the latest glucose value from the model */
+        /* stubbed for now */
+        imt_float_t next_glucose = imt_mmolperL_to_mgperdL(7.0);
+
+        /* run reassignment before running the controller again */
+        err = imt_exec_reassignment(ctx, next_glucose);
+        if(err)
+            running = 0;
+
+    }
     return 0;
 }
