@@ -54,7 +54,7 @@ class ChaseIcing {
     // PN(t) -> Parenteral nutrition input, eg IV dextrose
     auto _P(const std::vector<U> &x)
     {
-        const U _PN_ext = 0.0; // TODO -> derive this over the network
+        const U _PN_ext = dextrose_rate; // TODO -> derive this over the network
 
         return P_min(x) + _PN_ext;
     }
@@ -130,7 +130,7 @@ class ChaseIcing {
 
     auto P1_dot(const std::vector<U> &x)
     {
-        const auto D = dextrose_rate; //U(0.0); // enteral feed rate TODO: get from network
+        const auto D = U(0.0); // enteral feed rate TODO: get from network
         return -d1 * x[fn_P1] + D;
     }
 
@@ -148,18 +148,39 @@ public:
         dxdt[fn_I] = I_dot(x);
         dxdt[fn_P1] = P1_dot(x);
         dxdt[fn_P2] = P2_dot(x);
+    }
 
-        if(std::fmod(t, 10.0) <= 0.1) {
-            std::cout << 
-            "t: " << t << "\t"
-            "G: " << x[fn_G] << std::endl;
-        }
+    auto glucose()
+    {
+        return data[fn_G];
+    }
+
+    auto q()
+    {
+        return data[fn_Q];
+    }
+
+    auto i()
+    {
+        return data[fn_I];
+    }
+
+    auto p1()
+    {
+        return data[fn_P1];
+    }
+
+    auto p2()
+    {
+        return data[fn_P2];
     }
 
     double insulin_rate;
     double dextrose_rate;
     runge_kutta4<state_type> stepper;
-    state_type data;
+    state_type &data;
+
+    ChaseIcing(state_type _data) : data(_data) {print_row(-1, *this, -2,-3);};
 };
 
 void load_data(std::string filename)
@@ -168,6 +189,42 @@ void load_data(std::string filename)
 }
 
 using Chase = ChaseIcing<>;
+
+void print_row(double t, Chase model, double i, double d)
+{
+    static bool first_call = true;
+    const auto width = 25;
+    const auto g = model.glucose();
+    const auto q = model.q();
+    const auto I = model.i();
+    const auto p1 = model.p1();
+    const auto p2 = model.p2();
+
+
+    if(first_call) {
+        std::cout << std::setw(width) << "Time (min)";
+        std::cout << std::setw(width) << "Glucose (mg/dL)";
+        std::cout << std::setw(width) << "Insulin (mmol/min)";
+        std::cout << std::setw(width) << "Dextrose (mmol/min)";
+        std::cout << std::setw(width) << "Q";
+        std::cout << std::setw(width) << "I";
+        std::cout << std::setw(width) << "P1";
+        std::cout << std::setw(width) << "P2";
+        std::cout << std::endl;
+        first_call = false;
+    }
+    std::cout << std::setw(width) << t;
+    std::cout << std::setw(width) << imt_mmolperL_to_mgperdL(g);
+    std::cout << std::setw(width) << i;
+    std::cout << std::setw(width) << d;
+    std::cout << std::setw(width) << q;
+    std::cout << std::setw(width) << I;
+    std::cout << std::setw(width) << p1;
+    std::cout << std::setw(width) << p2;
+    std::cout << std::endl;
+
+}
+
 using vec5 = Chase::state_type;
 
 int run_model(Chase model
@@ -187,11 +244,7 @@ int run_model(Chase model
 int main(void)
 {
 
-    Chase model;  
-    
     const double tend = 1e5;
-    vec5 x = {10.0, 3.0, 10.0, 4.0, 3.0};
-    model.data = x;
 
 	
     const int rates_normalized_by_weight = 0;
@@ -203,11 +256,20 @@ int main(void)
     const imt_float_t control_max = 9.0; /* mmol/L */
     const imt_float_t initial_glucose = 6.1; /* mmol/L */
 
-    const char * INS_units = "U/hr";
-    const char * DEX_units = "mg/min";
+    const char * INS_units = "mmol/min";
+    const char * DEX_units = "mmol/min";
 
     imt_context_t context, *ctx = &context;
     double insulin_rate, dextrose_rate, time_step;
+
+    /* initialize model */
+    /* plasma insulin 19 +/- 2 mU/L */
+    /* interstitial insulin 67 +/- 19 mU/L */
+    /* glucose in stomach 50g postprandial = 277.54 mmol */
+    /* glucose in gut ? maybe 2g = 11.1 mmol */
+    vec5 x = {initial_glucose, 19.0, 67.0, 277.54, 11.1};
+    Chase model(x);  
+    
 
     /* sets up controller to control to a range of 4.4-9.0 mmol/L */
     imt_exec_init(ctx 
@@ -250,6 +312,7 @@ int main(void)
         if(err)
             running = 0;
 
+        print_row(time, model, insulin_rate, dextrose_rate);
         /* run the model you've chosen */
         err = run_model(model, time, time_step, insulin_rate, dextrose_rate);
         if(err)
@@ -259,7 +322,7 @@ int main(void)
 
         /* get the latest glucose value from the model */
         /* stubbed for now */
-        imt_float_t next_glucose = imt_mmolperL_to_mgperdL(7.0);
+        imt_float_t next_glucose = imt_mmolperL_to_mgperdL(model.glucose());
 
         /* run reassignment before running the controller again */
         err = imt_exec_reassignment(ctx, next_glucose);
