@@ -178,7 +178,7 @@ public:
     double insulin_rate;
     double dextrose_rate;
     runge_kutta4<state_type> stepper;
-    state_type &data;
+    state_type data;
 
     ChaseIcing(state_type _data) : data(_data) {print_row(-1, *this, -2,-3);};
 };
@@ -227,7 +227,7 @@ void print_row(double t, Chase model, double i, double d)
 
 using vec5 = Chase::state_type;
 
-int run_model(Chase model
+int run_model(Chase &model
         , double time_start
         , imt_float_t time_step
         , imt_float_t ins
@@ -237,7 +237,16 @@ int run_model(Chase model
     const double dt = 0.1;
     model.insulin_rate = ins;
     model.dextrose_rate = dex;
-    integrate_const(model.stepper, model, model.data, time_start, time_start+time_step, dt);
+    /* model doesnt modify inplace, so we make copies of its data
+     * for integration */
+    auto x = model.data;
+    auto step = model.stepper;
+
+    integrate_const(step, model, x, time_start, time_start+time_step, dt);
+    
+    model.data = x;
+    model.stepper = step;
+    
     return 0;
 }
 
@@ -269,7 +278,6 @@ int main(void)
     /* glucose in gut ? maybe 2g = 11.1 mmol */
     vec5 x = {initial_glucose, 19.0, 67.0, 277.54, 11.1};
     Chase model(x);  
-    
 
     /* sets up controller to control to a range of 4.4-9.0 mmol/L */
     imt_exec_init(ctx 
