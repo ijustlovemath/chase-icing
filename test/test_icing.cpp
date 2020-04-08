@@ -180,7 +180,7 @@ public:
     runge_kutta4<state_type> stepper;
     state_type data;
 
-    ChaseIcing(state_type _data) : data(_data) {print_row(-1, *this, -2,-3);};
+    ChaseIcing(state_type _data) : data(_data) {};
 };
 
 void load_data(std::string filename)
@@ -254,7 +254,6 @@ int main(void)
 {
 
     const double tend = 1e5;
-
 	
     const int rates_normalized_by_weight = 0;
 
@@ -320,8 +319,10 @@ int main(void)
         if(err)
             running = 0;
 
+        /* log the current data to stdout */
         print_row(time, model, insulin_rate, dextrose_rate);
-        /* run the model you've chosen */
+
+        /* run the model you've chosen for one cycle */
         err = run_model(model, time, time_step, insulin_rate, dextrose_rate);
         if(err)
             running = 0;
@@ -336,6 +337,9 @@ int main(void)
         err = imt_exec_reassignment(ctx, next_glucose);
         if(err)
             running = 0;
+
+        if(running)
+            running = time <= tend;
 
     }
     return 0;
