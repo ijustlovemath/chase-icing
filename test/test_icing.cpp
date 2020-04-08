@@ -3,6 +3,7 @@
 #include <cmath> /* exp, fmod */
 #include <iostream> /* cout */
 #include <string>
+#include <memory> /* smart pointers, eg unique_ptr */
 
 #include <boost/numeric/odeint.hpp>
 using namespace boost::numeric::odeint;
@@ -152,35 +153,37 @@ public:
 
     auto glucose()
     {
-        return data[fn_G];
+        return (*data)[fn_G];
     }
 
     auto q()
     {
-        return data[fn_Q];
+        return (*data)[fn_Q];
     }
 
     auto i()
     {
-        return data[fn_I];
+        return (*data)[fn_I];
     }
 
     auto p1()
     {
-        return data[fn_P1];
+        return (*data)[fn_P1];
     }
 
     auto p2()
     {
-        return data[fn_P2];
+        return (*data)[fn_P2];
     }
 
     double insulin_rate;
     double dextrose_rate;
     runge_kutta4<state_type> stepper;
-    state_type &data;
+    std::unique_ptr<state_type> data;
 
-    ChaseIcing(state_type _data) : data(_data) {print_row(-1, *this, -2,-3);};
+    ChaseIcing(std::unique_ptr<state_type> _data) : data(_data) {
+        //print_row(-1, *this, -2,-3);
+    };
 };
 
 void load_data(std::string filename)
@@ -237,7 +240,18 @@ int run_model(Chase model
     const double dt = 0.1;
     model.insulin_rate = ins;
     model.dextrose_rate = dex;
-    integrate_const(model.stepper, model, model.data, time_start, time_start+time_step, dt);
+    print_row(-3, model, -4, -7);
+    integrate(model.stepper, model, *model.data, time_start, time_start+time_step, dt
+            /* observer */
+            , [](const vec5 &x, const double t) 
+                {
+                    std::cout << t;
+                    for(auto el : x) {
+                        std::cout << "," << el;
+                    }
+                    std::cout<<std::endl;
+                }
+    );
     return 0;
 }
 
@@ -268,7 +282,9 @@ int main(void)
     /* glucose in stomach 50g postprandial = 277.54 mmol */
     /* glucose in gut ? maybe 2g = 11.1 mmol */
     vec5 x = {initial_glucose, 19.0, 67.0, 277.54, 11.1};
-    Chase model(x);  
+    std::cerr << initial_glucose;
+    auto px = std::make_unique<vec5>( x  );
+    Chase model(std::move(px));  
     
 
     /* sets up controller to control to a range of 4.4-9.0 mmol/L */
