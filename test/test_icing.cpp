@@ -204,8 +204,8 @@ void print_row(double t, Chase model, double i, double d)
     if(first_call) {
         std::cout << std::setw(width) << "Time (min)";
         std::cout << std::setw(width) << "Glucose (mg/dL)";
-        std::cout << std::setw(width) << "Insulin (mmol/min)";
-        std::cout << std::setw(width) << "Dextrose (mmol/min)";
+        std::cout << std::setw(width) << "Insulin (mL/hr)";
+        std::cout << std::setw(width) << "Dextrose (mL/hr)";
         std::cout << std::setw(width) << "Q";
         std::cout << std::setw(width) << "I";
         std::cout << std::setw(width) << "P1";
@@ -264,11 +264,12 @@ int main(void)
     const imt_float_t control_max = 9.0; /* mmol/L */
     const imt_float_t initial_glucose = 6.1; /* mmol/L */
 
-    const char * INS_units = "mmol/min";
+    const char * INS_units = "mU/min";
     const char * DEX_units = "mmol/min";
 
     imt_context_t context, *ctx = &context;
-    double insulin_rate, dextrose_rate, time_step;
+    double insulin_rate=0.0, dextrose_rate=0.0;
+    double time_step;
 
     /* initialize model */
     /* plasma insulin 19 +/- 2 mU/L */
@@ -320,7 +321,10 @@ int main(void)
             running = 0;
 
         /* log the current data to stdout */
-        print_row(time, model, insulin_rate, dextrose_rate);
+        double ml_ins = -1.0, ml_dex = -1.0;
+        imt_insulin_prescription_in(ctx, "mL/hr", 0, &ml_ins);
+        imt_dextrose_prescription_in(ctx, "mL/hr", 0, &ml_dex);
+        print_row(time, model, ml_ins, ml_dex);
 
         /* run the model you've chosen for one cycle */
         err = run_model(model, time, time_step, insulin_rate, dextrose_rate);
