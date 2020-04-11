@@ -4,6 +4,9 @@ project(ChaseICING)
 
 set(CMAKE_CXX_STANDARD 14)
 
+include_directories(include)
+#link_directories(${CMAKE_BINARY_DIR}/lib)
+
 # https://stackoverflow.com/a/6646518/2289030
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_MULTITHREADED ON)
@@ -20,6 +23,9 @@ include(ExternalProject)
 
 if(Boost_FOUND)
 	include_directories(${Boost_INCLUDE_DIRS})
+
+    #    add_subdirectory(lib)
+
 	add_executable(test_icing test/test_icing.cpp)
 
     # get the controller
@@ -32,8 +38,6 @@ if(Boost_FOUND)
     ExternalProject_Get_Property(imtc install_dir)
     include_directories(${install_dir}/src/imtc/include)
 
-    message(FATAL ${install_dir})
-
-    #    add_dependencies(test_icing imtc)
+    add_dependencies(test_icing imtc)
     target_link_libraries(test_icing ${install_dir}/src/imtc-build/lib/libimt.so)
 endif()
