@@ -545,7 +545,6 @@ int main(void)
     auto interp = Interpolator<double>("../data/ICING BE SI Data.csv");
     interp.set_bounds(std::make_pair<double, double>(0.0, 1.0));
 
-    std::cout << interp.interpolate(0.5);
     auto generator = InverseCDFProcess<double>("../data/ICING BE SI Data.csv");
 
     for(int i = 0; i < 30; ++i) {
