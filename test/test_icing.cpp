@@ -141,6 +141,18 @@ class ChaseIcing {
         return -P_min(x) + d1 * x[fn_P1];
     }
 
+    void copy(const ChaseIcing &other)
+    {
+        data = other.data;
+        insulin_rate = other.insulin_rate;
+        dextrose_rate = other.dextrose_rate;
+    }
+
+    /* data is the container which contains the most up to date representation of the model's state
+     *
+     * Should only be accessed using the enum Function data type
+     */
+    _state_type data;
 public:
     using state_type = _state_type;
     void operator() (const state_type &x, state_type &dxdt, const U t)
@@ -177,12 +189,77 @@ public:
         return data[fn_P2];
     }
 
-    double insulin_rate;
-    double dextrose_rate;
-    runge_kutta4<state_type> stepper;
-    state_type data;
+    int run(U time_start
+            , U time_end
+            , U dt
+            , U insulin_rate_mUpermin
+            , U dextrose_rate_mmolpermin)
+    {
 
+        insulin_rate = insulin_rate_mUpermin;
+        dextrose_rate = dextrose_rate_mmolpermin;
+
+        /* model doesnt modify inplace, so we make copies of its data
+         * for integration */
+        auto x = data;
+        auto step = stepper;
+
+        integrate_const(step, *this, x, time_start, time_end, dt);
+        
+        data = x;
+        stepper = step;
+        
+        return 0;
+    }
+
+    /* run the model until time_end using default rates and time step
+     */
+    int run(U time_end)
+    {
+        return run(0.0, time_end, 0.1, insulin_rate, dextrose_rate);
+    }
+
+    /* run the model with implicitly provided rates
+     */
+    int run(U time_start, U time_end, U dt)
+    {
+        return run(time_start, time_end, dt, insulin_rate, dextrose_rate);
+    }
+
+    /* insulin_rate is the exogenous IV insulin rate, in mU/min (not mmol/min as listed in [1])
+     *
+     * Available for public modification, but use run() for most purposes.
+     */
+    U insulin_rate;
+
+    /* dextrose_rate is the exogenous IV dextrose rate, in mmol/min
+     *
+     * Available for public modification, but use run() for most purposes.
+     */
+    U dextrose_rate;
+
+    /* stepper is the Boost integration type, we use RK4 but you may use any you like
+     */
+    runge_kutta4<state_type> stepper;
+
+    /* public constructor
+     */
     ChaseIcing(state_type _data) : data(_data) {};
+
+    /* copy constructor
+     */
+    ChaseIcing(const ChaseIcing &other)
+    {
+        copy(other);
+    }
+
+    /* assignment operator
+     */
+    ChaseIcing& operator=(const ChaseIcing &other)
+    {
+        copy(other);
+        return *this;
+    }
 };
 
 #include "InverseCDFProcess.hpp"
@@ -235,19 +312,7 @@ int run_model(Chase &model
 {
 
     const double dt = 0.1;
-    model.insulin_rate = ins;
-    model.dextrose_rate = dex;
-    /* model doesnt modify inplace, so we make copies of its data
-     * for integration */
-    auto x = model.data;
-    auto step = model.stepper;
-
-    integrate_const(step, model, x, time_start, time_start+time_step, dt);
-    
-    model.data = x;
-    model.stepper = step;
-    
-    return 0;
+    return model.run(time_start, time_start + time_step, dt, ins, dex);
 }
 
 void run_controller_with_model(bool enable_controller)
@@ -349,9 +414,8 @@ void run_controller_with_model(bool enable_controller)
     }
 }
 
-int main(void)
+void test_interpolator_inversecdf(void)
 {
-
     auto interp = Interpolator<double>("../data/ICING BE SI Data.csv");
     interp.set_bounds(std::make_pair<double, double>(0.0, 1.0));
 
@@ -360,5 +424,10 @@ int main(void)
     for(int i = 0; i < 30; ++i) {
         std::cout << generator.generate() << std::endl;
     }
+}
+
+int main(void)
+{
+    run_controller_with_model(true);
     return 0;
 }
