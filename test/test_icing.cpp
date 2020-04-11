@@ -1,6 +1,6 @@
 #include <vector> /* representing state */
 #include <algorithm> /* for numeric min/max */
-#include <cmath> /* exp, fmod */
+#include <cmath> /* log, exp, fmod */
 #include <iostream> /* cout */
 #include <string> /* string */
 
@@ -28,6 +28,7 @@ class ChaseIcing {
         , fn_P
         , fn_u_en
     };
+    using _state_type = std::vector<U>;
 
     /* a bunch of constants that should be in the namespace */
     const U n_I = 0.0075; // 1/min, Table II, [1]
@@ -35,7 +36,7 @@ class ChaseIcing {
     const U d2 = -std::log(0.5)/100.0; // 1/min, Table II, [1]
     const U P_max = 6.11; // mmol/min, Table II, [1]
 
-    auto P_min(const std::vector<U> &x)
+    auto P_min(const _state_type &x)
     {
         return std::min(d2 * x[fn_P2], P_max);
     }
@@ -45,7 +46,7 @@ class ChaseIcing {
         return variable / (1.0 + decay_parameter * variable);
     }
 
-    auto Q_frac(const std::vector<U> &x)
+    auto Q_frac(const _state_type &x)
     {
         const U a_G = 1.0 / 65.0; // Table II, [1]
         const U Q = x[fn_Q];
@@ -53,14 +54,14 @@ class ChaseIcing {
     }
 
     // PN(t) -> Parenteral nutrition input, eg IV dextrose
-    auto _P(const std::vector<U> &x)
+    auto _P(const _state_type &x)
     {
         const U _PN_ext = dextrose_rate; // TODO -> derive this over the network
 
         return P_min(x) + _PN_ext;
     }
 
-    auto _u_en(const std::vector<U> &x)
+    auto _u_en(const _state_type &x)
     {
         const U k1 = 14.9; // mU * l / mmol/min, Table II, [1]
         const U k2 = -49.9; // mU/min, Table II, [1]
@@ -70,7 +71,7 @@ class ChaseIcing {
         return std::min(std::max(u_min, k1 * G + k2), u_max);
     }
 
-    auto G_dot(const std::vector<U> &x)
+    auto G_dot(const _state_type &x)
     {
         const U p_G = 0.006; // End of section 4.1, in [2]
         const U S_I = 0.5e-3; // TODO: patient specific
@@ -92,7 +93,7 @@ class ChaseIcing {
         return dGdt;
     }
 
-    auto Q_dot(const std::vector<U> &x)
+    auto Q_dot(const _state_type &x)
     {
         const U I = x[fn_I];
         const U Q = x[fn_Q];
@@ -101,7 +102,7 @@ class ChaseIcing {
         return n_I * (I - Q) - n_C * Q_frac(x);
     }
 
-    auto I_dot(const std::vector<U> &x)
+    auto I_dot(const _state_type &x)
     {
         const U n_K = 0.0542; // 1/min, Table II, [1]
         const U n_L = 0.1578; // 1/min, Table II, [1] 
@@ -129,19 +130,19 @@ class ChaseIcing {
         return dIdt;
     }
 
-    auto P1_dot(const std::vector<U> &x)
+    auto P1_dot(const _state_type &x)
     {
         const auto D = U(0.0); // enteral feed rate TODO: get from network
         return -d1 * x[fn_P1] + D;
     }
 
-    auto P2_dot(const std::vector<U> &x)
+    auto P2_dot(const _state_type &x)
     {
         return -P_min(x) + d1 * x[fn_P1];
     }
 
 public:
-    using state_type = std::vector<U>;
+    using state_type = _state_type;
     void operator() (const state_type &x, state_type &dxdt, const U t)
     {
         dxdt[fn_G] = G_dot(x);
