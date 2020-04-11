@@ -5,7 +5,6 @@ project(ChaseICING)
 set(CMAKE_CXX_STANDARD 14)
 
 include_directories(include)
-#link_directories(${CMAKE_BINARY_DIR}/lib)
 
 # https://stackoverflow.com/a/6646518/2289030
 set(Boost_USE_STATIC_LIBS ON)
@@ -24,7 +23,7 @@ include(ExternalProject)
 if(Boost_FOUND)
 	include_directories(${Boost_INCLUDE_DIRS})
 
-    #    add_subdirectory(lib)
+    add_subdirectory(lib)
 
 	add_executable(test_icing test/test_icing.cpp)
 
