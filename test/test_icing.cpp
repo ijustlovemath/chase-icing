@@ -2,9 +2,10 @@
 #include <algorithm> /* for numeric min/max */
 #include <cmath> /* exp, fmod */
 #include <iostream> /* cout */
-#include <string>
+#include <string> /* string */
 
 #include <boost/numeric/odeint.hpp>
+#include <ios>
 using namespace boost::numeric::odeint;
 
 #include <imt/imt.h>
@@ -183,10 +184,199 @@ public:
     ChaseIcing(state_type _data) : data(_data) {};
 };
 
-void load_data(std::string filename)
+#include <iostream>
+#include <sstream>
+#include <fstream>
+#include <string>
+/* largely taken from https://stackoverflow.com/a/415553/2289030 */
+template<typename U = icing_float>
+void load_xy_data(const std::string &filename, std::vector<U> &x, std::vector<U> &y)
 {
-        
+    std::ifstream data(filename);
+
+    std::string line;
+    while(std::getline(data, line))
+    {
+        std::stringstream linestream(line);
+        std::string cell;
+        int i = 0;
+        while(std::getline(linestream, cell, ','))
+        {
+            const U element = static_cast<U>(std::stod(cell));
+            switch(i) {
+            case 0:
+                x.push_back(element);
+                break;
+            case 1:
+                y.push_back(element);
+                break;
+            default: ;
+            }
+            ++i;
+        }
+        if(i < 2) { 
+            // avoid mismatch if line is malformated
+            x.pop_back();
+            std::cerr << "problem loading data from " << filename << std::endl;
+        }
+    }
 }
+
+#include <vector> /* std::vector */
+#include <utility> /* std::pair */
+#include <algorithm> /* std::lower_bound, std::sort */
+#include <boost/range/combine.hpp> /* boost::combine */
+template<typename U = icing_float>
+class Interpolator {
+    std::vector<std::pair<U, U>> _table;
+    const U INF = static_cast<U>(1e100);
+
+    U _lower_bound = -INF;
+    U _upper_bound = INF;
+
+    void init(const std::vector<U> &x, const std::vector<U> &y)
+    {
+        // taken from here: https://stackoverflow.com/a/8513803/2289030
+        for(auto tup : boost::combine(x, y)) {
+            U x, y;
+            boost::tie(x, y) = tup;
+
+            _table.push_back(std::make_pair(x, y));
+        }
+
+        std::sort(_table.begin(), _table.end());
+    }
+
+    void init(const std::vector<U> &x, const std::vector<U> &y, std::pair<U, U> bounds)
+    {
+        init(x, y);
+        set_bounds(bounds);
+    }
+    
+    void copy(const Interpolator &other)
+    {
+        _table = other._table;
+        _lower_bound = other._lower_bound;
+        _upper_bound = other._upper_bound;    
+    }
+public:
+    U get(U x)
+    {
+        // taken from here: https://stackoverflow.com/a/11675205/2289030
+        // Assumes that "table" is sorted by .first
+
+        // Check if x is out of bound
+        if (x > _table.back().first) return _upper_bound;
+        if (x < _table[0].first) return _lower_bound;
+
+        typename std::vector<std::pair<U, U>>::iterator it, it2;
+        // INFINITY is defined in math.h in the glibc implementation
+        it = std::lower_bound(_table.begin(), _table.end(), std::make_pair(x, -INF));
+        // Corner case
+        if (it == _table.begin()) return it->second;
+        it2 = it;
+        --it2;
+        return it2->second + ((it->second - it2->second)
+                                *(x - it2->first)/(it->first - it2->first));
+    }
+
+    void set_bounds(const std::pair<U, U> &bounds)
+    {
+        _lower_bound = bounds.first;
+        _upper_bound = bounds.second;
+    }
+
+    U interpolate(U x)
+    {
+        return get(x);
+    }
+
+    Interpolator(const std::vector<U> &x, const std::vector<U> &y)
+    {
+        init(x, y);
+    }
+
+    Interpolator(const std::vector<U> &x, const std::vector<U> &y
+            , std::pair<U,U> bounds)
+    {
+        init(x, y, bounds);
+    }
+
+    Interpolator(const std::string &filename)
+    {
+        std::vector<U> x, y;
+        load_xy_data<U>(filename, x, y);
+        
+        init(x, y);
+    }
+
+    Interpolator() {};
+
+    Interpolator(const Interpolator &other)
+    {
+        copy(other);
+    }
+
+    Interpolator& operator=(const Interpolator &rhs)
+    {
+        copy(rhs);
+        return *this;
+    }
+
+};
+
+#include <random>
+//#include "Interpolator.hpp"
+template<typename U = icing_float>
+class InverseCDFProcess {
+
+    std::vector<U> _x;
+    std::vector<U> _y;
+
+    std::random_device _r;
+    std::seed_seq seed{_r(), _r(), _r(), _r(), _r(), _r(), _r()};
+    //std::default_random_engine _generator;
+    std::mt19937 _generator{seed};
+    std::uniform_real_distribution<U> _distribution{0.0, 1.0};
+
+    Interpolator<U> _interp;
+
+    const std::pair<U,U> bounds = std::make_pair<U,U>(0.0, 1.0);
+    
+    void copy(const InverseCDFProcess &other)
+    {
+        _interp = other._interp;
+        _x = other._x;
+        _y = other._y;
+    }
+
+public:
+    InverseCDFProcess(const std::string &filename)
+    {
+        load_xy_data<U>(filename, _x, _y);
+        _interp = Interpolator<U>(_x, _y, bounds);
+    }
+    InverseCDFProcess(const std::vector<U> &x, const std::vector<U> &y) : 
+        _x(x), _y(y)
+        , _interp(Interpolator<U>(x, y, bounds)) {};
+
+    InverseCDFProcess(const InverseCDFProcess &other)
+    {
+        copy(other);
+    }
+
+    InverseCDFProcess& operator=(const InverseCDFProcess &other)
+    {
+        copy(other);
+        return *this;
+    }
+
+    U generate()
+    {
+        // https://www.cplusplus.com/reference/random/uniform_real_distribution/
+        return _interp.interpolate(_distribution(_generator));
+    }
+};
 
 using Chase = ChaseIcing<>;
 
@@ -250,9 +440,8 @@ int run_model(Chase &model
     return 0;
 }
 
-int main(void)
+void run_controller_with_model(bool enable_controller)
 {
-
     const double tend = 1e5;
 	
     const int rates_normalized_by_weight = 0;
@@ -299,21 +488,23 @@ int main(void)
         if(err)
             running = 0;
 
-        /* get insulin rate */
-        err = imt_insulin_prescription_in(ctx, INS_units
-                , rates_normalized_by_weight
-                , &insulin_rate
-        );
-        if(err)
-            running = 0;
+        if(enable_controller) {
+            /* get insulin rate */
+            err = imt_insulin_prescription_in(ctx, INS_units
+                    , rates_normalized_by_weight
+                    , &insulin_rate
+            );
+            if(err)
+                running = 0;
 
-        /* get dextrose rate */
-        err = imt_dextrose_prescription_in(ctx, DEX_units
-                , rates_normalized_by_weight
-                , &dextrose_rate
-        );
-        if(err)
-            running = 0;
+            /* get dextrose rate */
+            err = imt_dextrose_prescription_in(ctx, DEX_units
+                    , rates_normalized_by_weight
+                    , &dextrose_rate
+            );
+            if(err)
+                running = 0;
+        }
 
         /* get time step, in minutes */
         err = imt_cycle_length_min(ctx, &time_step);
@@ -345,6 +536,20 @@ int main(void)
         if(running)
             running = time <= tend;
 
+    }
+}
+
+int main(void)
+{
+
+    auto interp = Interpolator<double>("../data/ICING BE SI Data.csv");
+    interp.set_bounds(std::make_pair<double, double>(0.0, 1.0));
+
+    std::cout << interp.interpolate(0.5);
+    auto generator = InverseCDFProcess<double>("../data/ICING BE SI Data.csv");
+
+    for(int i = 0; i < 30; ++i) {
+        std::cout << generator.generate() << std::endl;
     }
     return 0;
 }
