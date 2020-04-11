@@ -354,11 +354,11 @@ public:
     InverseCDFProcess(const std::string &filename)
     {
         load_xy_data<U>(filename, _x, _y);
-        _interp = Interpolator<U>(_x, _y, bounds);
+        _interp = Interpolator<U>(_y, _x, bounds);
     }
     InverseCDFProcess(const std::vector<U> &x, const std::vector<U> &y) : 
         _x(x), _y(y)
-        , _interp(Interpolator<U>(x, y, bounds)) {};
+        , _interp(Interpolator<U>(y, x, bounds)) {};
 
     InverseCDFProcess(const InverseCDFProcess &other)
     {
