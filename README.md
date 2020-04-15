@@ -1,6 +1,14 @@
 # chase-icing
 C++ Implementation of the 2016 Chase ICING model
 
+# Dependencies
+
+This project requires Boost 1.62.0 at the time of this writing. See CMakeLists.txt for the most up to date Boost requirements. You can obtain Boost from your package manager in Debian-based distributions using:
+
+`sudo apt install libboost-all-dev`
+
+CMake should take care of the rest!
+
 # Building
 
 This is a CMake project. To build the test executable, unfortunately you'll need access to a private repository.
@@ -39,4 +47,5 @@ In the future I plan to extend the model using randomly generated insulin sensit
 # References
 
 [1] - TBME-01160-2016 
+
 [2] - computer methods and programs in biomedicine 102 (2011) 192–205
