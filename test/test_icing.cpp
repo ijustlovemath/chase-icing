@@ -6,7 +6,6 @@
 #include <ios> /* std::setw */
 
 #include <imt/imt.h>
-#include <imt/libimt.h>
 
 #include "ChaseIcing.hpp"
 #include "InverseCDFProcess.hpp"
@@ -105,8 +104,10 @@ void run_controller_with_model(bool enable_controller)
     while(running) {
         /* run the controller for one cycle */
         err = imt_exec_controller(ctx);
-        if(err)
+        if(err) {
+            std::cout << imt_strerror(err);
             running = 0;
+        }
 
         if(enable_controller) {
             /* get insulin rate */
@@ -114,22 +115,28 @@ void run_controller_with_model(bool enable_controller)
                     , rates_normalized_by_weight
                     , &insulin_rate
             );
-            if(err)
+            if(err) {
+                std::cout << imt_strerror(err);
                 running = 0;
+            }
 
             /* get dextrose rate */
             err = imt_dextrose_prescription_in(ctx, DEX_units
                     , rates_normalized_by_weight
                     , &dextrose_rate
             );
-            if(err)
+            if(err) {
+                std::cout << imt_strerror(err);
                 running = 0;
+            }
         }
 
         /* get time step, in minutes */
         err = imt_cycle_length_min(ctx, &time_step);
-        if(err)
+        if(err) {
+            std::cout << imt_strerror(err);
             running = 0;
+        }
 
         /* log the current data to stdout */
         double ml_ins = -1.0, ml_dex = -1.0;
@@ -139,8 +146,10 @@ void run_controller_with_model(bool enable_controller)
 
         /* run the model you've chosen for one cycle */
         err = run_model(model, time, time_step, insulin_rate, dextrose_rate);
-        if(err)
+        if(err) {
+            std::cout << imt_strerror(err);
             running = 0;
+        }
 
         time += time_step;
 
@@ -150,8 +159,10 @@ void run_controller_with_model(bool enable_controller)
 
         /* run reassignment before running the controller again */
         err = imt_exec_reassignment(ctx, next_glucose);
-        if(err)
+        if(err) {
+            std::cout << imt_strerror(err);
             running = 0;
+        }
 
         if(running)
             running = time <= tend;
