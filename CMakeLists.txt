@@ -31,7 +31,7 @@ if(Boost_FOUND)
     ExternalProject_Add(imtc
         GIT_REPOSITORY git@gitlab.com:dejournett/imt-c-controller.git
         PREFIX ${CMAKE_CURRENT_BINARY_DIR}
-        CMAKE_ARGS -DCMAKE_C_COMPILER=clang -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}
+        CMAKE_ARGS -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}
     )
 
     ExternalProject_Get_Property(imtc install_dir)
