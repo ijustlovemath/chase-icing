@@ -1,0 +1,5 @@
+#!/bin/bash
+shops -s execfail
+sudo perf record -F 99 -a -g -- ./long_icing
+perf script | inferno-collapse-perf > stacks
+cat stacks | inferno-flamegraph > flamez.zzz 
