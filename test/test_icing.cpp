@@ -169,6 +169,10 @@ void run_controller_with_model(bool enable_controller)
 
     }
 }
+#include <chrono>
+using clck = std::chrono::system_clock;
+using us = std::chrono::duration<double, std::nano>;
+using ull = unsigned long long;
 
 void test_interpolator_inversecdf(void)
 {
@@ -177,13 +181,18 @@ void test_interpolator_inversecdf(void)
 
     auto generator = InverseCDFProcess<double>("../data/ICING BE SI Data.csv");
 
-    for(int i = 0; i < 30; ++i) {
-        std::cout << generator.generate() << std::endl;
+    const ull N = 10* 1000 * 1000 * 1000;
+    const auto before = clck::now();
+    for(ull i = 0; i < N; ++i) {
+        generator.generate();
+        //std::cout << generator.generate() << std::endl;
     }
+    const us duration = clck::now() - before;
+    std::cerr << "it took " << duration.count() / N << " ns/iteration" << std::endl;
 }
 
 int main(void)
 {
-    run_controller_with_model(true);
+    test_interpolator_inversecdf();
     return 0;
 }

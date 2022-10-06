@@ -26,6 +26,7 @@ if(Boost_FOUND)
     add_subdirectory(lib)
 
 	add_executable(test_icing test/test_icing.cpp)
+    target_compile_options(test_icing PUBLIC -O3)
 
     # get the controller
     ExternalProject_Add(imtc

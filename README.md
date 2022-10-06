@@ -42,7 +42,8 @@ An example library, with a (mostly correct) initial state vector, can be found i
 
 # Future Work
 
-In the future I plan to extend the model using randomly generated insulin sensitivity as derived from Fig 4 and Fig 5 of [1], to simulate patients properly from the original cohort of ICU patients. This will be implemented using the existing `InverseCDFProcess<U>` template class that's in the `include` folder. 
+In the future I plan to extend the model using randomly generated insulin sensitivity as derived from Fig 4 and Fig 5 of [1], to simulate patients properly from the original cohort of ICU patients. This will be implemented using the existing `InverseCDFProcess<U>` template class that's in the `include` folder.
+
 
 # References
 
