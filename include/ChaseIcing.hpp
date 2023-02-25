@@ -126,7 +126,7 @@ class ChaseIcing {
 
     auto P1_dot(const _state_type &x)
     {
-        const auto D = U(0.0); // enteral feed rate TODO: get from network
+        const auto D = enteral_feed_rate; // enteral feed rate TODO: get from network
         return -d1 * x[fn_P1] + D;
     }
 
@@ -140,6 +140,7 @@ class ChaseIcing {
         data = other.data;
         insulin_rate = other.insulin_rate;
         dextrose_rate = other.dextrose_rate;
+	enteral_feed_rate = other.enteral_feed_rate;
     }
 
     /* data is the container which contains the most up to date representation of the model's state
@@ -232,13 +233,26 @@ public:
      */
     U dextrose_rate;
 
+    /* enteral_feed_rate is the uptake of glucose by the gut, in <WHAT UNITS>
+     *
+     * Available for public modification, but use run() for most purposes.
+     * TODO: integrate into the run() method, but for now only use public access
+     */
+    U enteral_feed_rate;
+
     /* stepper is the Boost integration type, we use RK4 but you may use any you like
      */
     runge_kutta4<state_type> stepper;
 
     /* public constructor
      */
-    ChaseIcing(state_type _data) : data(_data) {};
+    ChaseIcing(state_type _data) : data(_data) {
+	insulin_rate = U(0.0);
+	dextrose_rate = U(0.0);
+	enteral_feed_rate = U(0.0);
+    };
+
+    ChaseIcing() = default;
 
     /* copy constructor
      */

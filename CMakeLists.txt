@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 
 project(ChaseICING)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
 include_directories(include)
 
@@ -10,7 +10,11 @@ include_directories(include)
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME ON)
-find_package(Boost 1.62.0 REQUIRED) # version avail on WSL debian
+find_package(Boost)# REQUIRED) # version avail on WSL debian
+
+if(MSVC)
+include_directories(C:/Users/jcdej/projects/vcpkg/installed/x86-windows/include)
+endif()
 
 option(DEBUG_GPROF OFF)
 if(${DEBUG_GPROF})
@@ -20,10 +24,12 @@ endif()
 
 include(ExternalProject)
 
+add_subdirectory(lib)
+
+
 if(Boost_FOUND)
 	include_directories(${Boost_INCLUDE_DIRS})
 
-    add_subdirectory(lib)
 
 	add_executable(test_icing test/test_icing.cpp)
     target_compile_options(test_icing PUBLIC -O3)
@@ -41,3 +47,4 @@ if(Boost_FOUND)
     add_dependencies(test_icing imtc)
     target_link_libraries(test_icing ${install_dir}/src/imtc-build/lib/libimt.so)
 endif()
+
