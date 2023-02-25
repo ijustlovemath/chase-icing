@@ -13,7 +13,8 @@ set(Boost_USE_STATIC_RUNTIME ON)
 find_package(Boost)# REQUIRED) # version avail on WSL debian
 
 if(MSVC)
-include_directories(C:/Users/jcdej/projects/vcpkg/installed/x86-windows/include)
+    include_directories(C:/Users/jcdej/projects/vcpkg/installed/x86-windows/include SYSTEM)
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
 
 option(DEBUG_GPROF OFF)

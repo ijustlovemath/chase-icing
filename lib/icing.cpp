@@ -10,6 +10,9 @@ extern int init_model(double initial_glucose)
 	static ModelType::state_type initial_state = {initial_glucose, 19.0, 67.0, 277.54, 11.1};
 	initial_state[0] = initial_glucose;
 	model = (ModelType(initial_state));
+	if(initial_glucose < 0.0 || initial_glucose > 25.0) {
+	    return 3;
+	}
 	return 0;
 }
 

@@ -1,1 +1,1 @@
-add_library(icing STATIC icing.cpp)
+add_library(icing SHARED icing.cpp icing.def)
